@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "sourceUrl": "https://raleighnc.gov/status-alerts?alert_category=746&field_alert_type_target_id=All&title=",
+  "fetchedAt": "2026-09-18T14:44:51Z",
+  "alerts": [
+    {
+      "id": "12e0dc87-6547-4427-8a68-6e92543e4fe9",
+      "title": "Crabtree Creek Trail Closure",
+      "url": "https://raleighnc.gov/status-alerts/crabtree-creek-trail-closure",
+      "code": "red",
+      "subtitle": "Between Mile Markers 9.5 and 10.25",
+      "description": "A section of the Crabtree Creek Greenway Trail near Lassiter Mill is not currently closed but is expected to close in the coming weeks through spring 2028. The closure is necessary to protect the public during streambank stabilization and trail improvements, including realigning the trail beneath the Lassiter Mill Road bridge to provide a safer, more convenient route for greenway users. View Closure Map.\n\nContact\n\nNoah Otto, 919-996-4796\n\nNoah.Otto@raleighnc.gov",
+      "links": [
+        "https://cityofraleigh0drupal.blob.core.usgovcloudapi.net/drupal-prod/COR24/crabtree-creek-closure-map.pdf"
+      ],
+      "startsAt": "2026-09-04T08:00:00-04:00",
+      "endsAt": "2028-01-01T00:00:00-05:00",
+      "updatedAt": "2026-09-04T18:23:56+00:00",
+      "places": [
+        {
+          "id": "19f9ccc1-f67e-4f43-9c4a-5d535d33275f",
+          "name": "Crabtree Creek Greenway Trail",
+          "url": "https://raleighnc.gov/parks-and-recreation/places/crabtree-creek-greenway-trail"
+        }
+      ],
+      "projects": [
+        {
+          "id": "746c5f19-c018-4bbd-ac47-c3511bc4423d",
+          "name": "Crabtree Creek Trail Improvements at Lassiter Mill Road",
+          "url": "https://raleighnc.gov/projects/crabtree-creek-trail-improvements-lassiter-mill-road"
+        }
+      ]
+    },
+    {
+      "id": "21803e0e-67c4-4b6f-84ea-85b268ba25d1",
+      "title": "Turkey Creek Trail Closure",
+      "url": "https://raleighnc.gov/status-alerts/turkey-creek-trail-closure",
+      "code": "red",
+      "subtitle": "Mile Marker 16.75",
+      "description": "A section of the Turkey Creek Trail at Umstead State Park is closed for a bridge replacement project. During this time, access between Umstead State Park, the Crabtree Creek Trail and the parking lot located at 4924 Ebenezer Church Road, will remain open. Be advised that users will not be able to go north into Umstead State Park along the Turkey Creek Trail from the Crabtree Creek Trail. This project is being coordinated by North Carolina State Parks.\n\nDo not use Ebenezer Church Road as access to the trail systems. Ebenezer Church Road is a busy vehicular road with a speed limit of 45 mph. For your safety, do not cross the construction barricades.\n\nContact\n\nKris Anne Bonifacio, 919-707-9369\n\nkrisanne.bonifacio@ncparks.gov",
+      "links": [],
+      "startsAt": "2024-02-20T00:00:00-05:00",
+      "endsAt": "2026-12-31T00:00:00-05:00",
+      "updatedAt": "2026-08-27T14:50:27+00:00",
+      "places": [],
+      "projects": []
+    },
+    {
+      "id": "3699b11f-c913-47cd-bdc5-3476aaeac41a",
+      "title": "Neuse River Trail Alert",
+      "url": "https://raleighnc.gov/status-alerts/neuse-river-trail-alert-0",
+      "code": "yellow",
+      "subtitle": "Between Mile Marker 22 and 23.25",
+      "description": "The Complete 540 project will extend the Triangle Expressway from the N.C. 55 Bypass in Apex to Interstate 87/U.S. 64/U.S. 264 in Knightdale, joining the outer 540 loop around the greater Raleigh area. Construction of this project will require periodic stoppages of trail traffic, between Auburn Knightdale Rd and Battle Bridge Rd, to allow construction equipment and vehicles to cross the trail.\n\nTemporary closures will periodically be in place as construction advances. During trail closures, a temporary detour trail will be in place adjacent to the existing Neuse River Trail, allowing trail users to pass through this corridor during the entire construction process.\n\nContact\n\n1-800-554-7849\n\nComplete540@ncdot.gov",
+      "links": [],
+      "startsAt": "2025-10-06T00:00:00-04:00",
+      "endsAt": "2028-09-30T00:00:00-04:00",
+      "updatedAt": "2026-09-11T15:50:52+00:00",
+      "places": [
+        {
+          "id": "60c9d3e6-8baa-497b-b74f-d16bf11228ca",
+          "name": "Neuse River Greenway Trail",
+          "url": "https://raleighnc.gov/parks-and-recreation/places/neuse-river-greenway-trail"
+        }
+      ],
+      "projects": []
+    },
+    {
+      "id": "6d705d34-811d-4573-bfee-d67887d20b9c",
+      "title": "Neuse River Trail Closure",
+      "url": "https://raleighnc.gov/status-alerts/neuse-river-trail-closure-1",
+      "code": "red",
+      "subtitle": "Between Mile Markers 10 - 11.5",
+      "description": "A section of the Neuse River Trail from Buffaloe Road Athletic Park to River Bend Park, is closed for a sewer improvement project. Additionally, the access points to the trail at Buffaloe Road Athletic and River Bend Parks are closed. As part of the Upper West Neuse Interceptor project, approximately 11,400 linear feet of existing 48-inch sewer along the western side of the Neuse River from Beaverdam Creek to north of I-540 will be replaced. A trail detour is not available. View Closure Map.\n\nContact\n\nJulie Parham, P.E., 919-996-4541\n\nJulie.Parham@raleighnc.gov",
+      "links": [
+        "https://cityofraleigh0drupal.blob.core.usgovcloudapi.net/drupal-prod/COR24/upper-neuse-map.pdf"
+      ],
+      "startsAt": "2026-03-09T07:00:00-04:00",
+      "endsAt": "2027-12-31T18:00:00-05:00",
+      "updatedAt": "2026-09-01T19:14:22+00:00",
+      "places": [
+        {
+          "id": "60c9d3e6-8baa-497b-b74f-d16bf11228ca",
+          "name": "Neuse River Greenway Trail",
+          "url": "https://raleighnc.gov/parks-and-recreation/places/neuse-river-greenway-trail"
+        }
+      ],
+      "projects": [
+        {
+          "id": "6c5811dd-0825-4b9b-88da-918d32537927",
+          "name": "Upper West Neuse Interceptor",
+          "url": "https://raleighnc.gov/projects/upper-west-neuse-interceptor"
+        }
+      ]
+    }
+  ]
+}
