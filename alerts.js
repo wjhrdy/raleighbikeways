@@ -40,10 +40,9 @@
         if (alert.subtitle) article.append(element('p', alert.subtitle, 'alert-section'));
         article.append(element('p', `Affected: ${date(alert.startsAt)} – ${date(alert.endsAt)}`, 'alert-dates'));
         const paragraphs = alert.description.split(/\n\s*\n/).filter(Boolean);
-        if (paragraphs.length) article.append(element('p', paragraphs[0], 'alert-description'));
         const details = element('details');
         details.append(element('summary', 'Details and links'));
-        for (const paragraph of paragraphs.slice(1)) details.append(element('p', paragraph, 'alert-description'));
+        for (const paragraph of paragraphs) details.append(element('p', paragraph, 'alert-description'));
         const resources = element('ul', '', 'alert-links');
         function resource(label, url) {
             const anchor = link(label, url);
