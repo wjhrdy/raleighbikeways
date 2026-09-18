@@ -571,6 +571,11 @@
         touchLocation = null;
     });
 
+    // Register once: delegated layer events continue to work after style changes.
+    map.on('click', layers.CITRIX, showBikeshareDetails);
+    map.on('mouseenter', layers.CITRIX, () => { map.getCanvas().style.cursor = 'pointer'; });
+    map.on('mouseleave', layers.CITRIX, () => { map.getCanvas().style.cursor = ''; });
+
     map.on('contextmenu', event => {
         showContextMenuPopupOnPoint(event.lngLat);
     });
@@ -1081,7 +1086,9 @@
             'layout': {},
             'paint': {
                 'circle-color': colors.CITRIX,
-                'circle-radius': 5,
+                'circle-radius': ['interpolate', ['linear'], ['zoom'], 11, 4, 16, 8],
+                'circle-stroke-color': 'white',
+                'circle-stroke-width': 2,
             }
         });
 
@@ -1275,6 +1282,39 @@
         });
 
         return geoJSON;
+    }
+
+    function showBikeshareDetails(event) {
+        if (!event.features || !event.features.length) return;
+        const properties = event.features[0].properties || {};
+        const content = document.createElement('div');
+        const title = document.createElement('strong');
+        title.textContent = properties.name || 'Cardinal Bikeshare station';
+        content.appendChild(title);
+        const fields = [['address', 'Address'], ['status', 'Station status'],
+            ['total_locked_cycle_count', 'Reported bikes']];
+        fields.forEach(([key, label]) => {
+            if (properties[key] === undefined || properties[key] === null || properties[key] === '') return;
+            const row = document.createElement('p');
+            row.textContent = label + ': ' + properties[key];
+            content.appendChild(row);
+        });
+        const note = document.createElement('p');
+        note.textContent = 'City dataset; bike counts are not live availability.';
+        content.appendChild(note);
+        const date = new Date(properties.EditDate);
+        if (properties.EditDate && !Number.isNaN(date.getTime())) {
+            const updated = document.createElement('p');
+            updated.textContent = 'City record updated: ' + date.toLocaleDateString();
+            content.appendChild(updated);
+        }
+        const link = document.createElement('a');
+        link.href = 'https://cardinalbikeshare.com/';
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.textContent = 'Bikeshare information';
+        content.appendChild(link);
+        new mapboxgl.Popup().setLngLat(event.lngLat).setDOMContent(content).addTo(map);
     }
 
     function legendToggleGreenwayLayer(isChecked) {
