@@ -571,6 +571,8 @@
         touchLocation = null;
     });
 
+    map.on('zoom', updateWaterGaugeMarkerSizes);
+
     map.on('contextmenu', event => {
         showContextMenuPopupOnPoint(event.lngLat);
     });
@@ -1226,6 +1228,19 @@
                 .addTo(map);
 
             addedWaterGaugeMarkers.push(newMarker);
+        });
+        updateWaterGaugeMarkerSizes();
+    }
+
+    function updateWaterGaugeMarkerSizes() {
+        // Resize the element without changing Mapbox's positioning transform.
+        const zoomFraction = Math.max(0, Math.min(1, (map.getZoom() - 9) / 6));
+        addedWaterGaugeMarkers.forEach(marker => {
+            const element = marker.getElement();
+            const isInfo = element.classList.contains('gaugeMarker_info');
+            const size = isInfo ? 12 + 8 * zoomFraction : 18 + 22 * zoomFraction;
+            element.style.width = size + 'px';
+            element.style.height = size + 'px';
         });
     }
 
