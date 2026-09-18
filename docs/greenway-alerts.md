@@ -24,8 +24,13 @@ Descriptions are plain text, not executable HTML. Consumers should use
 notices and upstream wording; it does not infer current closure state from color
 or dates. For example, a Code Red notice can describe an upcoming closure.
 Website alerts do not provide closure-segment geometry and are not automatically
-converted into routing exclusions. This change supplies data; it does not add an
-alert display to the map.
+converted into routing exclusions. The map’s Alerts button opens a responsive panel with status badges, affected
+sections and dates, descriptions, official links, and expandable details. It
+shows the snapshot sync time and warns when the data is over 48 hours old.
+Empty and unavailable snapshots have distinct messages, with a retry action
+for failures. The native dialog supports keyboard dismissal and restores focus
+to the Alerts button. Snapshot requests bypass both HTTP and service-worker
+caches so nightly updates appear without an app-shell refresh.
 
 ## Running locally
 
