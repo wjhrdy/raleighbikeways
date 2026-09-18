@@ -212,7 +212,9 @@
                 <tr>
                     <td>
                         <input id="bike-parking-checkbox" type="checkbox" class="legend-checkbox"
-                            onchange="legendToggleBikeParking(this.checked);" checked>Bike Parking<br>
+                            onchange="legendToggleBikeParking(this.checked);" checked>Bike Parking
+                        <button type="button" aria-label="How to add bike parking"
+                            onclick="document.getElementById('bike-parking-info-container').style.display='block'">info</button><br>
                     </td>
                     <td>
                         <svg height="24" width="24" class="existing-legend">
@@ -320,6 +322,21 @@
                 <img src="img/citrix.jpg" width="500" />
             </div>
             <br>
+        </div>
+    </div>
+    <div id="bike-parking-info-container" class="modal-container" onclick="this.style.display='none'" style="display: none;">
+        <div class="modal legend-info" role="dialog" aria-labelledby="bike-parking-help-title" onclick="event.stopPropagation()">
+            <button type="button" class="close-button" aria-label="Close bike parking help"
+                onclick="document.getElementById('bike-parking-info-container').style.display='none'">Close</button>
+            <h2 id="bike-parking-help-title" class="legend-info-title">Add missing bike parking</h2>
+            <p>Bike parking comes from OpenStreetMap. Zoom in to see mapped parking.</p>
+            <ol>
+                <li>Find the rack on <a href="https://www.openstreetmap.org/" target="_blank" rel="noopener">OpenStreetMap</a> and check whether it is already mapped.</li>
+                <li>Sign in, choose Edit, and add a point at the rack with the Bicycle Parking preset.</li>
+                <li>Add details you have observed, such as rack type, capacity (number of bikes), cover, and access restrictions. Save with a short description.</li>
+            </ol>
+            <p>Prefer to leave a note? Use <a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noopener">OpenStreetMap's reporting guide</a> to describe the location and rack so a mapper can add it.</p>
+            <p>See the <a href="https://wiki.openstreetmap.org/wiki/Tag:amenity%3Dbicycle_parking" target="_blank" rel="noopener">bike parking mapping guide</a> for details. Changes appear here after our map data refreshes; they are not immediate.</p>
         </div>
     </div>
     <div id="water-gauge-info-container" class="modal-container" onclick="this.style.display='none'" style="display: none;">
