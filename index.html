@@ -76,10 +76,16 @@
             </button>
           </span>
         </div>
+        <details id="route-options">
+            <summary>Stops and avoid points</summary>
+            <p>Right-click or long-press the map to add stops in order or avoid a 100 m area.</p>
+            <ol id="route-points-list"></ol>
+            <button type="button" onclick="clearRoutePoints()">Clear stops and avoid points</button>
+        </details>
         <span id="routeDetails" style="display: none;">
             <span id="routeLength"></span>
             <span id="routeTime"></span>
-            <button class="clear-btn-separate" onclick="clearInput('startSearchBox');clearInput('endSearchBox');">Clear Route</button>
+            <button class="clear-btn-separate" onclick="clearInput('startSearchBox');clearInput('endSearchBox');clearRoutePoints();">Clear Route</button>
         </span>
         <button id="hide-search-section" onclick="event.stopPropagation(); toggleDirectionSection()">
             <i class=" material-icons md-36 md-dark noselect">chevron_left</i>
@@ -630,6 +636,10 @@
 
     let startLocation = null;
     let endLocation = null;
+    let routeWaypoints = [];
+    let routeExclusions = [];
+    let routePointMarkers = [];
+    let routeRequestVersion = 0;
     let brouterRoute = null;
     let brouterCustomProfile = null;
     let wakeLock = null;
@@ -1532,19 +1542,93 @@
             endMarker.remove();
         }
       }
+      routeRequestVersion++;
+      toggleLoader(false);
       brouterRoute = null;
       setBrouterRoute();
     }
 
+    function routePointDistance(a, b) {
+        const radians = Math.PI / 180;
+        const latDelta = (b.lat - a.lat) * radians;
+        const lngDelta = (b.lng - a.lng) * radians;
+        const h = Math.sin(latDelta / 2) ** 2 + Math.cos(a.lat * radians) * Math.cos(b.lat * radians) * Math.sin(lngDelta / 2) ** 2;
+        return 6371000 * 2 * Math.asin(Math.sqrt(Math.min(1, h)));
+    }
+
+    function addRoutePoint(kind, lng, lat) {
+        (kind === 'stop' ? routeWaypoints : routeExclusions).push({lng, lat});
+        document.getElementById('route-options').open = true;
+        routePointsChanged();
+    }
+
+    function clearRoutePoints() {
+        routeWaypoints = [];
+        routeExclusions = [];
+        routePointsChanged();
+    }
+
+    function routePointsChanged() {
+        routePointMarkers.forEach(marker => marker.remove());
+        routePointMarkers = [];
+        const list = document.getElementById('route-points-list');
+        list.textContent = '';
+        [[routeWaypoints, 'Stop'], [routeExclusions, 'Avoid']].forEach(([points, kind]) => {
+            points.forEach((point, index) => {
+                const label = `${kind} ${index + 1}${kind === 'Avoid' ? ' (100 m radius)' : ''}`;
+                const row = document.createElement('li');
+                row.textContent = `${label}: ${point.lat.toFixed(5)}, ${point.lng.toFixed(5)} `;
+                if (kind === 'Stop' && index > 0) {
+                    const up = document.createElement('button');
+                    up.type = 'button';
+                    up.textContent = 'Move up';
+                    up.setAttribute('aria-label', `Move ${label} earlier`);
+                    up.onclick = () => {
+                        [points[index - 1], points[index]] = [points[index], points[index - 1]];
+                        routePointsChanged();
+                    };
+                    row.appendChild(up);
+                }
+                const remove = document.createElement('button');
+                remove.type = 'button';
+                remove.textContent = 'Remove';
+                remove.setAttribute('aria-label', `Remove ${label}`);
+                remove.onclick = () => { points.splice(index, 1); routePointsChanged(); };
+                row.appendChild(remove);
+                list.appendChild(row);
+                const element = document.createElement('div');
+                element.className = 'route-point-marker ' + (kind === 'Avoid' ? 'route-point-avoid' : '');
+                element.textContent = kind === 'Stop' ? index + 1 : 'X';
+                element.title = label;
+                routePointMarkers.push(new mapboxgl.Marker(element).setLngLat(point).addTo(map));
+            });
+        });
+        if (startLocation && endLocation) fetchRouteFromBRouter(startLocation, endLocation);
+    }
+
     async function fetchRouteFromBRouter(loc1, loc2) {
+      const requestVersion = ++routeRequestVersion;
+      const routePoints = [loc1, ...routeWaypoints, loc2].map(point => ({...point}));
+      const exclusions = routeExclusions.map(point => ({...point}));
+      brouterRoute = null;
+      setBrouterRoute(true);
       try {
         toggleLoader(true);
+        if (routePoints.some(point => exclusions.some(exclusion => routePointDistance(point, exclusion) <= 100))) {
+            throw new Error('Move or remove avoid points within 100 m of the start, end, or a stop.');
+        }
         const profileName = await setBrouterProfile();
+        if (requestVersion !== routeRequestVersion) return;
         if (!profileName) {
             throw new Error(`No profile to use for navigation`);
         }
 
-        const brouterUrl = `https://brouter.de/brouter?lonlats=${loc1.lng},${loc1.lat}|${loc2.lng},${loc2.lat}&profile=${profileName}&alternativeidx=0&format=geojson`;
+        const params = new URLSearchParams({
+            lonlats: routePoints.map(point => `${point.lng},${point.lat}`).join('|'),
+            profile: profileName, alternativeidx: '0', format: 'geojson'
+        });
+        if (exclusions.length) params.set('nogos', exclusions.map(point => `${point.lng},${point.lat},100`).join('|'));
+        const brouterUrl = `https://brouter.de/brouter?${params}`;
 
         const response = await fetch(brouterUrl);
         if (!response.ok) {
@@ -1553,13 +1637,15 @@
         }
 
         const geojson = await response.json();
+        if (requestVersion !== routeRequestVersion) return;
         handleGeoJsonResponse(geojson);
       } catch (error) {
+        if (requestVersion !== routeRequestVersion) return;
         brouterCustomProfile = null; // clear the profile so we re-upload, in case the profile is gone / bugged
         onException('Error fetching route:', error);
-        alert(`There was an error fetching the recommended route. You can move the start or end location to retry. Please let us know if this keeps happening`);
+        alert(`Could not calculate the route. ${error.message} Move a route point or remove an avoid point to retry.`);
       } finally {
-        toggleLoader(false);
+        if (requestVersion === routeRequestVersion) toggleLoader(false);
       }
     }
 
@@ -1604,6 +1690,9 @@
             <p onClick=setStartLocationLngLat(${coordinates.lng},${coordinates.lat})>Set Location as Start</p>
             <hr>
             <p onClick=setEndLocationLngLat(${coordinates.lng},${coordinates.lat})>Set Location as End</p>
+            <hr>
+            <button type="button" onclick="addRoutePoint('stop', ${coordinates.lng}, ${coordinates.lat})">Add stop before end</button>
+            <button type="button" onclick="addRoutePoint('avoid', ${coordinates.lng}, ${coordinates.lat})">Avoid within 100 m</button>
         </div>
         `
 
@@ -1657,7 +1746,7 @@
                     });
                 });
 
-                map.fitBounds(bounds, { padding: {top: 120, bottom: 40, left: 40, right: 40} });
+                map.fitBounds(bounds, { padding: {top: Math.min(window.innerHeight / 2, document.getElementById('direction-search-container').offsetHeight + 20), bottom: 40, left: 40, right: 40} });
             }
 
             map.addSource(sources.BROUTER_ROUTER, {

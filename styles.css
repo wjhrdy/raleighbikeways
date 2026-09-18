@@ -494,3 +494,9 @@ Otherwise the parent z-index makes things difficult */
     0% { transform: translateX(-100%); }
     100% { transform: translateX(100vw); }
   }
+#route-options { max-width: 280px; font-size: 13px; background: white; color: #222; padding: 4px; }
+#route-options p { margin: 4px 0; }
+#route-points-list { max-height: 120px; overflow-y: auto; padding-left: 24px; }
+#route-points-list button { margin: 2px; }
+.route-point-marker { width: 24px; height: 24px; line-height: 24px; text-align: center; border: 2px solid white; border-radius: 50%; background: #ffb347; color: #111; font-weight: bold; }
+.route-point-avoid { background: #a71919; color: white; }
