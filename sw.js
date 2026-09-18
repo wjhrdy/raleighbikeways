@@ -1,4 +1,4 @@
-var CACHE_NAME = "bikeways-cache-v1";
+var CACHE_NAME = "bikeways-cache-v2";
 var urlsToCache = [
     '/',
     '/styles.css',
@@ -23,63 +23,45 @@ self.addEventListener('install', function (event) {
     );
 });
 
+// Refresh the app shell on every online visit; keep the last good copy offline.
+// Only cache our explicit static assets. APIs, routing POSTs, and third-party
+// requests must keep their normal network behavior.
 self.addEventListener('fetch', function (event) {
-    event.respondWith(
-        caches.match(event.request)
-            .then(function (response) {
-                // Cache hit - return response
-                if (response) {
-                    return response;
-                }
+    var url = new URL(event.request.url);
+    if (event.request.method !== 'GET' || url.origin !== self.location.origin) return;
+    var isPage = event.request.mode === 'navigate' &&
+        (url.pathname === '/' || url.pathname === '/index.html');
+    if (!isPage && urlsToCache.indexOf(url.pathname) === -1) return;
+    var cacheKey = isPage ? '/' : event.request;
 
-                return fetch(event.request)
-
-                // TODO: FIGURE OUT A WAY TO MAKE CACHE EXPIRE
-
-                // return fetch(event.request).then(
-                //     function (response) {
-                //         // Check if we received a valid response
-                //         if (!response || response.status !== 200 || response.type !== 'basic') {
-                //             return response;
-                //         }
-
-                //         // IMPORTANT: Clone the response. A response is a stream
-                //         // and because we want the browser to consume the response
-                //         // as well as the cache consuming the response, we need
-                //         // to clone it so we have two streams.
-                //         var responseToCache = response.clone();
-
-                //         caches.open(CACHE_NAME)
-                //             .then(function (cache) {
-                //                 cache.put(event.request, responseToCache);
-                //             });
-
-                //         return response;
-                //     }
-                // );
-            })
-    );
+    var responsePromise = fetch(event.request, { cache: 'no-cache' }).then(function (response) {
+        if (!response.ok) throw new Error('Unable to refresh cached asset');
+        return response;
+    });
+    event.waitUntil(responsePromise.then(function (response) {
+        var copy = response.clone();
+        return caches.open(CACHE_NAME).then(function (cache) {
+            return cache.put(cacheKey, copy);
+        });
+    }).catch(function () {
+        // Offline or cache storage unavailable: retain the last successful copy.
+    }));
+    event.respondWith(responsePromise.catch(function (error) {
+        return caches.open(CACHE_NAME).then(function (cache) {
+            return cache.match(cacheKey);
+        }).then(function (cached) {
+            if (cached) return cached;
+            throw error;
+        });
+    }));
 });
 
 self.addEventListener('activate', function (event) {
-
-    var cacheWhitelist = [
-        '/img/bike_lane.jpg',
-        '/img/citrix.jpg',
-        '/img/marginal-greenway-1.jpg',
-        '/img/marginal-greenway-2.jpg',
-        '/img/sidepath.jpg'
-    ];
-
-    event.waitUntil(
-        caches.keys().then(function (cacheNames) {
-            return Promise.all(
-                cacheNames.map(function (cacheName) {
-                    if (cacheWhitelist.indexOf(cacheName) === -1) {
-                        return caches.delete(cacheName);
-                    }
-                })
-            );
-        })
-    );
+    event.waitUntil(caches.keys().then(function (cacheNames) {
+        return Promise.all(cacheNames.filter(function (name) {
+            return name.indexOf('bikeways-cache-') === 0 && name !== CACHE_NAME;
+        }).map(function (name) {
+            return caches.delete(name);
+        }));
+    }));
 });
