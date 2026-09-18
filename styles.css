@@ -494,3 +494,5 @@ Otherwise the parent z-index makes things difficult */
     0% { transform: translateX(-100%); }
     100% { transform: translateX(100vw); }
   }
+#screen-awake-control { background: white; color: #222; padding: 6px; max-width: 270px; font-size: 14px; }
+#wake-lock-status { display: block; margin-top: 3px; }

@@ -76,6 +76,10 @@
             </button>
           </span>
         </div>
+        <div id="screen-awake-control">
+            <label><input id="keep-screen-awake" type="checkbox" onchange="setKeepScreenAwake(this.checked)"> Keep screen awake</label>
+            <small id="wake-lock-status" role="status" aria-live="polite">Off. Uses more battery when enabled.</small>
+        </div>
         <span id="routeDetails" style="display: none;">
             <span id="routeLength"></span>
             <span id="routeTime"></span>
@@ -634,6 +638,8 @@
     let brouterCustomProfile = null;
     let wakeLock = null;
     let wakeLockSupported = false;
+    let keepScreenAwake = false;
+    let wakeLockPending = false;
 
     let customFollowState = 'OFF'; // Can be OFF, ACTIVE, BACKGROUND
     let watchID = null; // geolocation watch ID, needs to be cleared when we aren't using it
@@ -642,6 +648,9 @@
 
     if ("wakeLock" in navigator) {
         wakeLockSupported = true;
+    } else {
+        document.getElementById('keep-screen-awake').disabled = true;
+        document.getElementById('wake-lock-status').textContent = 'Not supported in this browser.';
     }
 
     // Function to help build a query string for querying the ArcGIS REST service
@@ -1761,7 +1770,7 @@
             maximumAge: 1000,
         });
         addDeviceOrientationListener();
-        toggleWakeLock(true);
+
         customFollowState = 'ACTIVE';
         setTrackingText("Stop Following");
     }
@@ -1867,42 +1876,51 @@
         navigator.geolocation.clearWatch(watchID);
         window.removeEventListener('deviceorientation', this._onDeviceOrientation);
         window.removeEventListener('deviceorientationabsolute', this._onDeviceOrientation);
-        toggleWakeLock(false);
+
         userLocationMarker && userLocationMarker.remove();
         setGeolocateControl(true);
         customFollowState = 'OFF';
         setTrackingText("Follow Location");
     }
 
-    async function toggleWakeLock(shouldFollow) {
-        if (!!shouldFollow == !!wakeLock) {
-            // We are already in the desired state
-            console.log('already at correct wake lock status');
-            return;
-        }
+    function setKeepScreenAwake(enabled) {
+        keepScreenAwake = enabled;
+        updateWakeLock();
+    }
 
-        if (!wakeLockSupported) {
-            onError("tried to get wakelock on unsupported device");
-            return;
-        }
-
-        // Try and start location tracking
-
-        if (!wakeLock) {
-            try {
-                wakeLock = await navigator.wakeLock.request("screen");
-                document.getElementById("no-lock-icon").style.color = 'cyan'; // TODO: improve this
-                console.log("got wake lock");
-            } catch (err) {
-                // The Wake Lock request has failed - usually system related, such as battery.
-                onError(`failed to get wake lock: ${err.name}, ${err.message}`);
+    async function updateWakeLock() {
+        if (!wakeLockSupported) return;
+        const status = document.getElementById('wake-lock-status');
+        if (!keepScreenAwake || document.visibilityState !== 'visible') {
+            const previousLock = wakeLock;
+            wakeLock = null;
+            status.textContent = keepScreenAwake ? 'Paused while this page is hidden.' : 'Off. Uses more battery when enabled.';
+            if (previousLock) {
+                try { await previousLock.release(); } catch (error) { onError(error.message); }
             }
-        } else {
-            wakeLock.release().then(() => {
+            return;
+        }
+        if (wakeLock || wakeLockPending) return;
+        wakeLockPending = true;
+        status.textContent = 'Requesting screen wake lock...';
+        try {
+            const requestedLock = await navigator.wakeLock.request('screen');
+            if (!keepScreenAwake || document.visibilityState !== 'visible') {
+                await requestedLock.release();
+                return;
+            }
+            wakeLock = requestedLock;
+            status.textContent = 'Screen will stay awake. Uses more battery.';
+            requestedLock.addEventListener('release', () => {
+                if (wakeLock !== requestedLock) return;
                 wakeLock = null;
-                document.getElementById("no-lock-icon").style.color = 'white';
-                console.log("released wake lock");
-            })
+                status.textContent = keepScreenAwake ? 'Screen wake lock paused by the browser.' : 'Off. Uses more battery when enabled.';
+            });
+        } catch (error) {
+            if (keepScreenAwake) status.textContent = 'Could not keep the screen awake. Switch off and on to retry.';
+            onError(`Screen wake lock failed: ${error.message}`);
+        } finally {
+            wakeLockPending = false;
         }
     }
 
@@ -1910,12 +1928,7 @@
         document.getElementById('follow-location-text').textContent = text;
     }
 
-    // If the wakelock is asked for, the user goes to another tab, then comes back, this will keep it active
-    document.addEventListener("visibilitychange", async () => {
-        if (wakeLock !== null && document.visibilityState === "visible") {
-            wakeLock = await navigator.wakeLock.request("screen");
-        }
-    });
+    document.addEventListener('visibilitychange', updateWakeLock);
 
     function onException(message, exception) {
         console.error(`[Triangle Bikeways] ${message} | ${exception && exception.message}`, exception);
