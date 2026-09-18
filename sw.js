@@ -3,7 +3,7 @@ var urlsToCache = [
     '/',
     '/styles.css',
     '/alerts.css',
-    '/alerts.js',
+    '/alerts.js?v=2',
     '/data/caryFacilities.geojson',
     '/data/caryGreenways.geojson',
     '/data/durham_shared.geojson',
