@@ -571,6 +571,11 @@
         touchLocation = null;
     });
 
+    // Register once: delegated layer events continue to work after style changes.
+    map.on('click', layers.BIKE_PARKING, showBikeParkingDetails);
+    map.on('mouseenter', layers.BIKE_PARKING, () => { map.getCanvas().style.cursor = 'pointer'; });
+    map.on('mouseleave', layers.BIKE_PARKING, () => { map.getCanvas().style.cursor = ''; });
+
     map.on('contextmenu', event => {
         showContextMenuPopupOnPoint(event.lngLat);
     });
@@ -1060,16 +1065,13 @@
             'type': 'circle',
             'source': sources.OSM,
             'minzoom': 15,
+            'filter': ['all', ['==', ['get', 'amenity'], 'bicycle_parking'], ['==', ['geometry-type'], 'Point']],
             'layout': {},
             'paint': {
                 'circle-color': 'blue',
-                'circle-radius': 4,
-                'circle-opacity': [
-                    'case',
-                    ["match", ["get", "amenity"], ["bicycle_parking"], true, false],
-                    1,
-                    0,
-                ],
+                'circle-radius': ['interpolate', ['linear'], ['zoom'], 15, 5, 18, 8],
+                'circle-stroke-color': 'white',
+                'circle-stroke-width': 2,
             }
         });
 
@@ -1275,6 +1277,29 @@
         });
 
         return geoJSON;
+    }
+
+    function showBikeParkingDetails(event) {
+        if (!event.features || !event.features.length) return;
+        const properties = event.features[0].properties || {};
+        const content = document.createElement('div');
+        const title = document.createElement('strong');
+        title.textContent = properties.name || 'Bike parking';
+        content.appendChild(title);
+        const fields = [['bicycle_parking', 'Rack type'], ['capacity', 'Bike capacity'],
+            ['covered', 'Covered'], ['access', 'Access'], ['fee', 'Fee'], ['operator', 'Operator']];
+        let count = 0;
+        fields.forEach(([key, label]) => {
+            if (properties[key] === undefined || properties[key] === null || properties[key] === '') return;
+            const row = document.createElement('p');
+            row.textContent = label + ': ' + String(properties[key]).replace(/_/g, ' ');
+            content.appendChild(row);
+            count++;
+        });
+        const note = document.createElement('p');
+        note.textContent = count ? 'Details from OpenStreetMap.' : 'No additional parking details in OpenStreetMap yet.';
+        content.appendChild(note);
+        new mapboxgl.Popup().setLngLat(event.lngLat).setDOMContent(content).addTo(map);
     }
 
     function legendToggleGreenwayLayer(isChecked) {
