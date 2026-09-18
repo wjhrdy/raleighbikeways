@@ -1,7 +1,8 @@
-var CACHE_NAME = "bikeways-cache-v1";
+var CACHE_NAME = "bikeways-cache-v2";
 var urlsToCache = [
     '/',
     '/styles.css',
+    '/closure-routing.bundle.js',
     '/data/caryFacilities.geojson',
     '/data/caryGreenways.geojson',
     '/data/durham_shared.geojson',
@@ -63,13 +64,7 @@ self.addEventListener('fetch', function (event) {
 
 self.addEventListener('activate', function (event) {
 
-    var cacheWhitelist = [
-        '/img/bike_lane.jpg',
-        '/img/citrix.jpg',
-        '/img/marginal-greenway-1.jpg',
-        '/img/marginal-greenway-2.jpg',
-        '/img/sidepath.jpg'
-    ];
+    var cacheWhitelist = [CACHE_NAME];
 
     event.waitUntil(
         caches.keys().then(function (cacheNames) {

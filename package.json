@@ -1,0 +1,16 @@
+{
+  "name": "raleigh-bikeways",
+  "private": true,
+  "scripts": {
+    "build": "esbuild closure-routing.js --bundle --minify --format=iife --global-name=ClosureRouting --outfile=closure-routing.bundle.js",
+    "test": "node --test tests/*.test.js"
+  },
+  "dependencies": {
+    "@turf/boolean-intersects": "7.3.0",
+    "@turf/buffer": "7.3.0",
+    "@turf/simplify": "7.3.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.10"
+  }
+}

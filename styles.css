@@ -41,6 +41,27 @@ body {
     padding-top: 3px;
 }
 
+.closure-routing-option {
+    display: block;
+    font-size: 14px;
+    color: #111;
+    background: #ffffffdd;
+    padding: 5px;
+}
+
+#route-status:not(:empty) {
+    margin-top: 6px;
+    padding: 6px;
+    font-size: 14px;
+    color: #163d25;
+    background: #f4fff7;
+}
+
+#route-status.route-status-error {
+    color: #821919;
+    background: #fff2f2;
+}
+
 #routeDetails span {
     color: white;
     padding-left: 10px;

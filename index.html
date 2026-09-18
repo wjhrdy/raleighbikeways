@@ -1,5 +1,6 @@
 <html>
 <head>
+    <meta charset="utf-8">
     <title>Raleigh Bikeways</title>
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css?family=Lato" rel="stylesheet">
@@ -7,6 +8,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@40,400,0,0&icon_names=bedtime_off" />
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.8.0/mapbox-gl.css" rel="stylesheet">
     <script src="https://api.mapbox.com/mapbox-gl-js/v3.8.0/mapbox-gl.js"></script>
+    <script src="closure-routing.bundle.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
     <script src="mapbox-gl-directions.js">
     </script>
@@ -76,6 +78,11 @@
             </button>
           </span>
         </div>
+        <label class="closure-routing-option">
+            <input id="avoid-closures" type="checkbox" checked onchange="rerouteForClosures()" />
+            Avoid mapped Raleigh closures
+        </label>
+        <div id="route-status" role="status" aria-live="polite"></div>
         <span id="routeDetails" style="display: none;">
             <span id="routeLength"></span>
             <span id="routeTime"></span>
@@ -631,6 +638,7 @@
     let startLocation = null;
     let endLocation = null;
     let brouterRoute = null;
+    let routeRequestController = null;
     let brouterCustomProfile = null;
     let wakeLock = null;
     let wakeLockSupported = false;
@@ -1029,7 +1037,7 @@
                 'line-width': 1.5,
                 'line-opacity': [
                     'case',
-                    ["match", ["get", "GWSTATUS"], ["CLOSED_TEMP"], true, false],
+                    ["match", ["get", "GWSTATUS"], ClosureRouting.CLOSED_STATUSES, true, false],
                     1,
                     0,
                 ],
@@ -1093,7 +1101,7 @@
                 'text-field': [
                     'match',
                     ['get', 'GWSTATUS'],
-                    "CLOSED_TEMP", "X",
+                    ClosureRouting.CLOSED_STATUSES, "X",
                     ""
                 ],
                 'symbol-placement': 'line-center',
@@ -1518,6 +1526,10 @@
     }
 
     function clearInput(inputId) {
+      if (routeRequestController) routeRequestController.abort();
+      routeRequestController = null;
+      toggleLoader(false);
+      setRouteStatus('');
       const input = document.getElementById(inputId);
       input.value = '';
 
@@ -1536,39 +1548,79 @@
       setBrouterRoute();
     }
 
+    function setRouteStatus(message, isError = false) {
+        const status = document.getElementById('route-status');
+        status.textContent = message;
+        status.classList.toggle('route-status-error', isError);
+    }
+
+    function rerouteForClosures() {
+        if (startLocation && endLocation) fetchRouteFromBRouter(startLocation, endLocation);
+    }
+
     async function fetchRouteFromBRouter(loc1, loc2) {
+      if (routeRequestController) routeRequestController.abort();
+      const controller = new AbortController();
+      routeRequestController = controller;
+      const avoidingClosures = document.getElementById('avoid-closures').checked;
+      let timedOut = false;
+      const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, 60000);
       try {
         toggleLoader(true);
-        const profileName = await setBrouterProfile();
+        brouterRoute = null;
+        setBrouterRoute(true);
+        setRouteStatus(avoidingClosures ? 'Checking current Raleigh closures…' : 'Finding route…');
+        let avoidance = { polygons: '', areas: [] };
+        if (avoidingClosures) {
+            const closures = await ClosureRouting.loadClosures(existingRaleighGreenwaysURL, controller.signal);
+            avoidance = ClosureRouting.createAvoidance(closures);
+        }
+        if (controller.signal.aborted) return;
+        const profileName = await setBrouterProfile(controller.signal);
+        if (controller.signal.aborted) return;
         if (!profileName) {
             throw new Error(`No profile to use for navigation`);
         }
 
-        const brouterUrl = `https://brouter.de/brouter?lonlats=${loc1.lng},${loc1.lat}|${loc2.lng},${loc2.lat}&profile=${profileName}&alternativeidx=0&format=geojson`;
+        const brouterUrl = ClosureRouting.routeUrl(loc1, loc2, profileName, avoidance);
+        setRouteStatus(avoidingClosures ? 'Finding a route around mapped closures…' : 'Finding route…');
 
-        const response = await fetch(brouterUrl);
+        const response = await fetch(brouterUrl, { signal: controller.signal });
         if (!response.ok) {
-          throw new Error(`Error response from BRouter get route call: ${response.statusText}`);
-          return;
+          throw new Error(avoidingClosures
+            ? 'Could not find a route avoiding mapped closures. Try moving the start or destination.'
+            : 'Could not find a route. Try moving the start or destination.');
         }
 
         const geojson = await response.json();
-        handleGeoJsonResponse(geojson);
+        if (controller.signal.aborted) return;
+        handleGeoJsonResponse(ClosureRouting.validateRoute(geojson, avoidance));
+        setRouteStatus(avoidingClosures
+            ? 'Route avoids mapped Raleigh closures. Unreported closures may still exist.'
+            : 'Closure avoidance is off.');
       } catch (error) {
+        if (routeRequestController !== controller) return;
+        if (controller.signal.aborted && !timedOut) return;
         brouterCustomProfile = null; // clear the profile so we re-upload, in case the profile is gone / bugged
         onException('Error fetching route:', error);
-        alert(`There was an error fetching the recommended route. You can move the start or end location to retry. Please let us know if this keeps happening`);
+        setRouteStatus(timedOut ? 'Routing timed out. Move the start or destination to retry.'
+            : error instanceof TypeError ? 'Could not load routing or closure data. Please try again.' : error.message, true);
       } finally {
-        toggleLoader(false);
+        clearTimeout(timeout);
+        if (routeRequestController === controller) {
+            if (timedOut) setRouteStatus('Routing timed out. Move the start or destination to retry.', true);
+            routeRequestController = null;
+            toggleLoader(false);
+        }
       }
     }
 
-    async function setBrouterProfile() {
+    async function setBrouterProfile(signal) {
         const brouterProfileUrl = `https://brouter.de/brouter/profile`;
 
         if (!brouterCustomProfile) {
             try {
-                const getProfileFileResponse = await fetch('/brouter-profiles/standard.brf');
+                const getProfileFileResponse = await fetch('/brouter-profiles/standard.brf', { signal });
                 
                 if (!getProfileFileResponse.ok) {
                     throw new Error(`Failed to fetch profile file: ${getProfileFileResponse.statusText}`);
@@ -1579,6 +1631,7 @@
                 const setProfileResponse = await fetch(brouterProfileUrl, {
                     method: 'POST',
                     body: profileFileData,
+                    signal,
                 });
 
                 if (!setProfileResponse.ok) {
@@ -1588,6 +1641,7 @@
                 const profileResponseJson = await setProfileResponse.json();
                 brouterCustomProfile = profileResponseJson.profileid;
             } catch (error) {
+                if (signal?.aborted) throw error;
                 onException('Error uploading profile:', error);
                 brouterCustomProfile = null;
             }
