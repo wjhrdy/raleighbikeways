@@ -1,4 +1,4 @@
-var CACHE_NAME = "bikeways-cache-v1";
+var CACHE_NAME = "bikeways-cache-no-cardinal-v1";
 var urlsToCache = [
     '/',
     '/styles.css',
@@ -7,7 +7,6 @@ var urlsToCache = [
     '/data/durham_shared.geojson',
     '/data/osm_durham.geojson',
     '/img/bike_lane.jpg',
-    '/img/citrix.jpg',
     '/img/marginal-greenway-1.jpg',
     '/img/marginal-greenway-2.jpg',
     '/img/sidepath.jpg',
@@ -65,7 +64,6 @@ self.addEventListener('activate', function (event) {
 
     var cacheWhitelist = [
         '/img/bike_lane.jpg',
-        '/img/citrix.jpg',
         '/img/marginal-greenway-1.jpg',
         '/img/marginal-greenway-2.jpg',
         '/img/sidepath.jpg'

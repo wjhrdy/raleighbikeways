@@ -198,19 +198,6 @@
                 </tr> -->
                 <tr>
                     <td>
-                        <input id="citrix-checkbox" type="checkbox" class="legend-checkbox"
-                            onchange="legendToggleCitrixLayer(this.checked)" checked>Cardinal Bikeshare Stations
-                        <i class="material-icons md-18 noselect"
-                            onclick="document.getElementById('citrix-info-container').style.display='block'">info</i>
-                    </td>
-                    <td>
-                        <svg height="24" width="24" class="existing-legend">
-                            <circle cx="12" cy="12" r="10" stroke="black" stroke-width="2" fill="red" />
-                        </svg>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
                         <input id="bike-parking-checkbox" type="checkbox" class="legend-checkbox"
                             onchange="legendToggleBikeParking(this.checked);" checked>Bike Parking<br>
                     </td>
@@ -306,22 +293,6 @@
             </div>
         </div>
     </div>
-    <div id="citrix-info-container" class="modal-container" onclick="this.style.display='none'" style="display: none;">
-        <div id="citrix-info" class="modal legend-info" onclick="event.stopPropagation()">
-            <i class=" material-icons md-24 noselect close-button"
-                onclick="document.getElementById('citrix-info-container').style.display='none'">close</i>
-            <div id="about">
-                <div class="legend-info-title">Cardinal Bikeshare Stations</div>
-                <span>
-                    Raleigh's docked bike share programming, including some electric assist bikes! Find out more, including how to rent the bikes, at
-                    <a href="https://cardinalbikeshare.com/" target="_blank">cardinalbikeshare.com</a>
-                </span>
-                <br>
-                <img src="img/citrix.jpg" width="500" />
-            </div>
-            <br>
-        </div>
-    </div>
     <div id="water-gauge-info-container" class="modal-container" onclick="this.style.display='none'" style="display: none;">
         <div id="water-gauge-info-info" class="modal legend-info" onclick="event.stopPropagation()">
             <i class=" material-icons md-24 noselect close-button"
@@ -406,7 +377,6 @@
     let specificGaugesUrl = 'https://waterservices.usgs.gov/nwis/iv/?format=json&sites={0}&siteStatus=active'
 
     const colors = {
-        CITRIX: '#f9423a',
         PROGRAMMED: '#3498DB',
         GREENWAY: '#28B463',
         GREENWAY_CLOSED: '#CC0000',
@@ -429,7 +399,6 @@
         CARY_GREENWAY_NAME: "cary-greenway-name-layer",
         GREENWAY_DETOUR: "greenway-detour-layer",
         CARY_BIKES_DASHED: "cary-bikes-dashed-layer",
-        CITRIX: 'citrix-cycle-stations-layer',
         DURHAM_FACILITIES_DASHED: 'durham-dashed-facilities-layer',
         MINGO_GREENWAY_NAMES: 'mingo-greenway-names-layer',
         SMITH_GREENWAY_NAMES: 'smith-greenway-names-layer',
@@ -446,7 +415,6 @@
         CARY_BIKES: "cary-bikes",
         EXISTING_FACILITIES: "existing-bike-facilities",
         PROGRAMMED_FACILITIES: "programmed-bike-facilities",
-        CITRIX: "citrix-cycle-stations",
         UMSTEAD: 'umstead-trails',
         DURHAM_SOLID: 'durham-solid',
         DURHAM_DASHED: 'durham-dashed',
@@ -657,19 +625,11 @@
     let existingRaleighGreenwaysURL = 'https://services.arcgis.com/v400IkDOw1ad7Yad/ArcGIS/rest/services/Greenway_Trails_All/FeatureServer/0';
     let existingBikeFacilities = 'https://services.arcgis.com/v400IkDOw1ad7Yad/ArcGIS/rest/services/Existing_Bike_Facilities/FeatureServer/6';
     let programmedBikeFacilities = 'https://services.arcgis.com/v400IkDOw1ad7Yad/ArcGIS/rest/services/Programmed_Bike_Facilities/FeatureServer/6';
-    let citrixCycleStations = 'https://services.arcgis.com/v400IkDOw1ad7Yad/arcgis/rest/services/Citrix_Cycle_Stations/FeatureServer/0';
     let durhamURL = 'https://webgis.durhamnc.gov/server/rest/services/OpenData/Bike_Facilities/MapServer/0';
 
     // Create the query string. These are the minimum parameters needed to return valid GeoJSON of a dataset, but addtional parameters could be added to refine the query
     let queryParams = queryString({
         where: "1=1",
-        outSR: 4326,
-        outFields: "*",
-        f: "geojson"
-    });
-
-    let citrixQueryParams = queryString({
-        where: "status LIKE 'open'",
         outSR: 4326,
         outFields: "*",
         f: "geojson"
@@ -691,7 +651,6 @@
     let caryBikeQuery = `data/caryFacilities.geojson`;
     let existingBikeFacilitiesQuery = `${existingBikeFacilities}/query?${queryParams}`;
     let programmedBikeFacilitiesQuery = `${programmedBikeFacilities}/query?${queryParams}`;
-    let citrixCycleStationsQuery = `${citrixCycleStations}/query?${citrixQueryParams}`;
     let greenwayDetourQuery = 'https://gist.githubusercontent.com/jonathonwpowell/51172dccc17cf8a832ff6566e700c2d8/raw/map.geojson';
     let durhamDashedQuery = 'data/durham_shared.geojson';
     let chCarrboroQuery = 'https://gist.githubusercontent.com/jonathonwpowell/23679b5c11f8108bc1aecad157475a8f/raw/ch-carrboro-bike-facilities.geojson';
@@ -736,10 +695,6 @@
                 if (getCookie("hideFacilitiesDashed") === "true") {
                     legendToggleDashedFacilitiesLayer(false);
                     document.getElementById('facilities-dashed-checkbox').checked = false;
-                }
-                if (getCookie("hideCitrix") === "true") {
-                    legendToggleCitrixLayer(false);
-                    document.getElementById('citrix-checkbox').checked = false;
                 }
                 // if (getCookie("hideProgrammed") === "true") {
                 //     legendToggleProgrammedLayer(false);
@@ -812,11 +767,6 @@
         //     'type': 'geojson',
         //     'data': existingBikeFacilitiesQuery
         // });
-
-        map.addSource(sources.CITRIX, {
-            'type': 'geojson',
-            'data': citrixCycleStationsQuery
-        });
 
         map.addSource(sources.CH_CARRBORO, {
             'type': 'geojson',
@@ -1074,18 +1024,6 @@
         });
 
         map.addLayer({
-            'id': layers.CITRIX,
-            'type': 'circle',
-            'source': sources.CITRIX,
-            'minzoom': 11,
-            'layout': {},
-            'paint': {
-                'circle-color': colors.CITRIX,
-                'circle-radius': 5,
-            }
-        });
-
-        map.addLayer({
             'id': layers.RALEIGH_GREENWAY_SYMBOL,
             'type': 'symbol',
             'source': sources.RALEIGH_GREENWAY,
@@ -1324,13 +1262,6 @@
 
         // setVisibilityProperty(layers.PROGRAMMED, visibilityState);
         // setVisibilityProperty(layers.PROGRAMMED_DASHED, visibilityState);
-    }
-
-    function legendToggleCitrixLayer(isChecked) {
-        var visibilityState = isChecked ? 'visible' : 'none';
-        setCookie("hideCitrix", (!isChecked).toString(), 1000);
-
-        setVisibilityProperty(layers.CITRIX, visibilityState);
     }
 
     function legendToggleBikeParking(isChecked) {

@@ -288,10 +288,6 @@ Otherwise the parent z-index makes things difficult */
     background: #3498DB;
 }
 
-#citrix {
-    background: #f9423a;
-}
-
 .mapboxgl-ctrl-group > button{
     width: 30px !important;
     height: 30px !important;
