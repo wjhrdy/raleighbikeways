@@ -1,7 +1,8 @@
-var CACHE_NAME = "bikeways-cache-v1";
+var CACHE_NAME = "bikeways-cache-spin-v1";
 var urlsToCache = [
     '/',
     '/styles.css',
+    '/spin.js',
     '/data/caryFacilities.geojson',
     '/data/caryGreenways.geojson',
     '/data/durham_shared.geojson',
