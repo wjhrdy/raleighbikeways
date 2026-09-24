@@ -16,6 +16,8 @@ were not provided.
 | After: polygon weight 10 | 501 m | 78 s | Yes |
 
 The updated route crosses at Buffaloe Road instead of taking the long detour.
+Its distance inside the closure buffer is below the 100-meter limit, so the
+strict-detour retry is not needed.
 Its BRouter way tags contain residential access and primary road segments,
 with no cycleway segments. The UI must display the closure-area access warning:
 two-dimensional closure geometry overlaps the road crossing, and the routing
@@ -36,3 +38,5 @@ changes. Repeat with freshly loaded GIS data to check current closure behavior.
 
 The existing automated tests separately verify finite polygon weights,
 acceptance of crossings, and the visible access warning.
+
+![Buffaloe Road crossing with access warning](recreated.png)

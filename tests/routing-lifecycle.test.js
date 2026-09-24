@@ -72,3 +72,47 @@ test('a route touching a closure is displayed with an access warning', async () 
     assert.match(app.status.textContent, /Route touches a mapped closure area/);
     assert.equal(app.status.isError, true);
 });
+
+const closures = JSON.parse(fs.readFileSync(require.resolve('../docs/counterexamples/buffaloe-road/closures.geojson'), 'utf8'));
+const originalWeighted = JSON.parse(fs.readFileSync(require.resolve('../docs/counterexamples/original-route/weighted-only.geojson'), 'utf8'));
+const originalDetour = JSON.parse(fs.readFileSync(require.resolve('../docs/counterexamples/original-route/detour.geojson'), 'utf8'));
+
+test('original screenshot route retries strictly instead of following 3 km of closed trail', async () => {
+    const avoidance = geometry.createAvoidance(closures);
+    assert.ok(geometry.distanceInClosures(originalWeighted, avoidance) > 3000);
+    assert.equal(geometry.distanceInClosures(originalDetour, avoidance), 0);
+    const urls = [];
+    const app = harness({ loadClosures: async () => closures, fetcher: async url => {
+        urls.push(new URL(url));
+        return { ok: true, json: async () => urls.length === 1 ? originalWeighted : originalDetour };
+    } });
+    await app.run();
+    assert.equal(urls.length, 2);
+    assert.equal(urls[0].searchParams.get('polygons').split('|')[0].split(',').length % 2, 1);
+    assert.equal(urls[1].searchParams.get('polygons').split('|')[0].split(',').length % 2, 0);
+    assert.deepEqual(app.results, [originalDetour]);
+    assert.match(app.status.textContent, /Route avoids/);
+});
+
+test('a failed strict detour never publishes the route along the closure', async () => {
+    const app = harness({ loadClosures: async () => closures,
+        fetcher: async () => ({ ok: true, json: async () => originalWeighted }) });
+    await app.run();
+    assert.equal(app.results.length, 0);
+    assert.match(app.status.textContent, /Could not find a route around the closed section/);
+});
+
+test('Buffaloe Road counterexample still uses the short crossing and warns', async () => {
+    const crossing = JSON.parse(fs.readFileSync(require.resolve('../docs/counterexamples/buffaloe-road/after.geojson'), 'utf8'));
+    const distance = geometry.distanceInClosures(crossing, geometry.createAvoidance(closures));
+    assert.ok(distance > 0 && distance < geometry.MAX_CLOSURE_METERS);
+    let calls = 0;
+    const app = harness({ loadClosures: async () => closures, fetcher: async () => {
+        calls++;
+        return { ok: true, json: async () => crossing };
+    } });
+    await app.run();
+    assert.equal(calls, 1);
+    assert.deepEqual(app.results, [crossing]);
+    assert.match(app.status.textContent, /Route touches/);
+});

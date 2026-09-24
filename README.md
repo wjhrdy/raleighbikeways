@@ -14,16 +14,19 @@ current `CLOSED_TEMP` and `CLOSED_STORM` segments from Raleigh's
 `closure-routing.js` buffers closed lines by 25 meters with Turf, unions adjacent
 segments, simplifies the resulting polygons, and sends their outer rings through
 BRouter's `polygons` query parameter, with a finite weight of 10 appended to each
-ring. BRouter adds this weight times the distance traveled inside the polygon to
-the route cost. A 50-meter crossing adds 500 cost units; following a kilometer
-of closed trail adds 10,000. Short cross-street connections remain possible
-without making a long closed greenway an impassable wall.
+ring. This requests a finite cost penalty instead of an impassable wall.
 
-These are two-dimensional areas, not trail-specific restrictions. Nearby roads,
-grade-separated crossings, and endpoints remain routable. The returned route is
-checked against the same polygons: if it touches one, the UI warns that it may
-cross on a street or use a closed trail and asks the rider to check access.
-The penalty discourages closed trails but cannot guarantee they will be avoided.
+BRouter's polygon penalty can miss route segments wholly inside the polygon.
+The app therefore measures the returned route's distance inside the closure
+areas. Up to 100 meters total is allowed for short crossings, with an access
+warning. Above that limit, it retries once with hard exclusions and rejects
+the retry if it still touches a closure. This preserves the original long-trail
+detour while allowing the Buffaloe Road street crossing.
+
+These are two-dimensional areas, not trail-specific restrictions. A short
+closed-trail section may still be allowed, and a long bridge or several street
+crossings totaling over 100 meters may trigger a conservative detour. Riders
+must check access whenever the closure-area warning appears.
 
 If fetching closure data or routing fails, the UI explains the failure and does
 not silently retry without the closure penalty. Users can explicitly turn the

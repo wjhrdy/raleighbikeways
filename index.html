@@ -1582,19 +1582,24 @@
             throw new Error(`No profile to use for navigation`);
         }
 
-        const brouterUrl = ClosureRouting.routeUrl(loc1, loc2, profileName, avoidance);
-        setRouteStatus(avoidingClosures ? 'Finding a route around mapped closures…' : 'Finding route…');
-
-        const response = await fetch(brouterUrl, { signal: controller.signal });
-        if (!response.ok) {
-          throw new Error(avoidingClosures
-            ? 'Could not find a route avoiding mapped closures. Try moving the start or destination.'
-            : 'Could not find a route. Try moving the start or destination.');
+        async function requestRoute(strict = false) {
+            const url = ClosureRouting.routeUrl(loc1, loc2, profileName, avoidance, strict);
+            const response = await fetch(url, { signal: controller.signal });
+            if (!response.ok) throw new Error('Could not find a route. Try moving the start or destination.');
+            return ClosureRouting.validateRoute(await response.json());
         }
-
-        const geojson = await response.json();
+        setRouteStatus(avoidingClosures ? 'Finding a route around mapped closures…' : 'Finding route…');
+        let geojson = await requestRoute();
         if (controller.signal.aborted) return;
-        handleGeoJsonResponse(ClosureRouting.validateRoute(geojson));
+        if (ClosureRouting.distanceInClosures(geojson, avoidance) > ClosureRouting.MAX_CLOSURE_METERS) {
+            setRouteStatus('Route follows a mapped closure. Finding a detour…');
+            geojson = await requestRoute(true);
+            if (controller.signal.aborted) return;
+            if (ClosureRouting.intersectsClosures(geojson, avoidance)) {
+                throw new Error('Could not find a route around the closed section. Try moving the start or destination.');
+            }
+        }
+        handleGeoJsonResponse(geojson);
         const touchesClosure = avoidingClosures && ClosureRouting.intersectsClosures(geojson, avoidance);
         setRouteStatus(avoidingClosures
             ? touchesClosure

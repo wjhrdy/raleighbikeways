@@ -90,3 +90,13 @@ test('ArcGIS errors, HTTP failures and canceled requests are not treated as zero
         signal.throwIfAborted();
     }), { name: 'AbortError' });
 });
+
+test('inside distance clips crossings and includes segments wholly inside polygons', () => {
+    const { distanceInClosures } = require('../closure-routing');
+    const avoidance = createAvoidance(collection(line()));
+    const crossing = distanceInClosures(route([[-78.66, 35.805], [-78.64, 35.805]]), avoidance);
+    assert.ok(crossing > 45 && crossing < 55);
+    const inside = distanceInClosures(route([[-78.65, 35.804], [-78.65, 35.806]]), avoidance);
+    assert.ok(inside > 220 && inside < 224);
+    assert.equal(distanceInClosures(route([[-78.64, 35.804], [-78.64, 35.806]]), avoidance), 0);
+});

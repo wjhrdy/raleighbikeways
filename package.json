@@ -7,7 +7,9 @@
   },
   "dependencies": {
     "@turf/boolean-intersects": "7.3.0",
+    "@turf/boolean-point-in-polygon": "7.3.0",
     "@turf/buffer": "7.3.0",
+    "@turf/line-intersect": "7.3.0",
     "@turf/simplify": "7.3.0"
   },
   "devDependencies": {

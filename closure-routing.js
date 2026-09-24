@@ -2,12 +2,15 @@
 const { buffer } = require('@turf/buffer');
 const { simplify } = require('@turf/simplify');
 const { booleanIntersects } = require('@turf/boolean-intersects');
+const { booleanPointInPolygon } = require('@turf/boolean-point-in-polygon');
+const { lineIntersect } = require('@turf/line-intersect');
 
 const CLOSED_STATUSES = ['CLOSED_TEMP', 'CLOSED_STORM'];
 const BUFFER_METERS = 25;
-// Added routing cost per meter inside a closure corridor: short crossings cost
-// less than following a closed trail. This is a preference, not a guarantee.
+// Request a finite penalty, then independently limit distance inside closures;
+// BRouter can miss weighted segments wholly inside a polygon.
 const CLOSURE_WEIGHT = 10;
+const MAX_CLOSURE_METERS = 100;
 
 async function loadClosures(layerUrl, signal, fetcher = fetch) {
     const features = [];
@@ -74,12 +77,43 @@ function intersectsClosures(geojson, avoidance) {
     return avoidance.areas.some(area => booleanIntersects(geojson, area));
 }
 
-function routeUrl(start, end, profile, avoidance) {
+// Clip every route segment at polygon boundaries, then measure the inside pieces.
+// This includes segments wholly inside a corridor, which BRouter's weighted
+// polygon handling can miss. Count overlapping areas only once.
+function distanceInClosures(route, avoidance) {
+    let meters = 0;
+    if (!avoidance.areas.length) return meters;
+    for (const feature of route.features) {
+        const points = feature.geometry.coordinates;
+        for (let i = 1; i < points.length; i++) {
+            const a = points[i - 1], b = points[i];
+            const dx = b[0] - a[0], dy = b[1] - a[1], squared = dx * dx + dy * dy;
+            if (!squared) continue;
+            const segment = { type: 'LineString', coordinates: [a, b] };
+            const cuts = [0, 1, ...avoidance.areas.flatMap(area =>
+                lineIntersect(segment, area).features.map(({ geometry: { coordinates: p } }) =>
+                    Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / squared))))].sort((a, b) => a - b);
+            // Local equirectangular distance is sufficient for short Raleigh road segments.
+            const length = Math.hypot(dx * Math.cos((a[1] + b[1]) * Math.PI / 360), dy) * Math.PI / 180 * 6371008.8;
+            for (let j = 1; j < cuts.length; j++) {
+                const t = (cuts[j - 1] + cuts[j]) / 2;
+                if (avoidance.areas.some(area => booleanPointInPolygon([a[0] + t * dx, a[1] + t * dy], area))) {
+                    meters += length * (cuts[j] - cuts[j - 1]);
+                }
+            }
+        }
+    }
+    return meters;
+}
+
+function routeUrl(start, end, profile, avoidance, strict = false) {
     const params = new URLSearchParams({
         lonlats: `${start.lng},${start.lat}|${end.lng},${end.lat}`,
         profile, alternativeidx: '0', format: 'geojson'
     });
-    if (avoidance.polygons) params.set('polygons', avoidance.polygons);
+    if (avoidance.polygons) params.set('polygons', strict
+        ? avoidance.polygons.split('|').map(polygon => polygon.slice(0, polygon.lastIndexOf(','))).join('|')
+        : avoidance.polygons);
     const url = `https://brouter.de/brouter?${params}`;
     // The public server does not currently accept routing POST bodies. Never
     // truncate exclusions or silently retry a route without them.
@@ -95,4 +129,4 @@ function validateRoute(route) {
     return route;
 }
 
-module.exports = { CLOSED_STATUSES, BUFFER_METERS, CLOSURE_WEIGHT, loadClosures, createAvoidance, intersectsClosures, routeUrl, validateRoute };
+module.exports = { CLOSED_STATUSES, BUFFER_METERS, CLOSURE_WEIGHT, MAX_CLOSURE_METERS, distanceInClosures, loadClosures, createAvoidance, intersectsClosures, routeUrl, validateRoute };
