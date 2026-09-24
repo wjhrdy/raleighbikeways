@@ -80,7 +80,7 @@
         </div>
         <label class="closure-routing-option">
             <input id="avoid-closures" type="checkbox" checked onchange="rerouteForClosures()" />
-            Avoid mapped Raleigh closures
+            Prefer routes away from mapped Raleigh closures
         </label>
         <div id="route-status" role="status" aria-live="polite"></div>
         <span id="routeDetails" style="display: none;">
@@ -1594,10 +1594,13 @@
 
         const geojson = await response.json();
         if (controller.signal.aborted) return;
-        handleGeoJsonResponse(ClosureRouting.validateRoute(geojson, avoidance));
+        handleGeoJsonResponse(ClosureRouting.validateRoute(geojson));
+        const touchesClosure = avoidingClosures && ClosureRouting.intersectsClosures(geojson, avoidance);
         setRouteStatus(avoidingClosures
-            ? 'Route avoids mapped Raleigh closures. Unreported closures may still exist.'
-            : 'Closure avoidance is off.');
+            ? touchesClosure
+                ? 'Route touches a mapped closure area. It may cross on a street or use a closed trail; check access before riding.'
+                : 'Route avoids mapped Raleigh closures. Unreported closures may still exist.'
+            : 'Closure avoidance is off.', touchesClosure);
       } catch (error) {
         if (routeRequestController !== controller) return;
         if (controller.signal.aborted && !timedOut) return;

@@ -1,4 +1,4 @@
-var CACHE_NAME = "bikeways-cache-v2";
+var CACHE_NAME = "bikeways-cache-v3";
 var urlsToCache = [
     '/',
     '/styles.css',

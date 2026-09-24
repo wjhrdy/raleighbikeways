@@ -11,7 +11,7 @@ const route = { type: 'FeatureCollection', features: [{ type: 'Feature', propert
     geometry: { type: 'LineString', coordinates: [[start.lng, start.lat], [end.lng, end.lat]] } }] };
 
 function harness({ checked = true, loadClosures = async () => ({ type: 'FeatureCollection', features: [] }), fetcher } = {}) {
-    const status = { textContent: '', classList: { toggle() {} } };
+    const status = { textContent: '', classList: { toggle(_, value) { status.isError = value; } } };
     const results = [];
     const context = vm.createContext({
         AbortController, setTimeout, clearTimeout,
@@ -60,4 +60,15 @@ test('an older routing response cannot overwrite the newest route', async () => 
     assert.equal(app.results.length, 1);
     assert.equal(app.results[0].stale, undefined);
     assert.match(app.status.textContent, /Route avoids/);
+});
+
+test('a route touching a closure is displayed with an access warning', async () => {
+    const app = harness({ loadClosures: async () => ({ type: 'FeatureCollection', features: [{
+        type: 'Feature', properties: { GWSTATUS: 'CLOSED_TEMP' },
+        geometry: { type: 'LineString', coordinates: [[-78.645, 35.79], [-78.645, 35.82]] }
+    }] }) });
+    await app.run();
+    assert.equal(app.results.length, 1);
+    assert.match(app.status.textContent, /Route touches a mapped closure area/);
+    assert.equal(app.status.isError, true);
 });

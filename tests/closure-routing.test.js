@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createAvoidance, intersectsClosures, routeUrl, validateRoute, loadClosures } = require('../closure-routing');
+const { CLOSURE_WEIGHT, createAvoidance, intersectsClosures, routeUrl, validateRoute, loadClosures } = require('../closure-routing');
 
 const line = (status = 'CLOSED_TEMP', coordinates = [[-78.65, 35.8], [-78.65, 35.81]]) => ({
     type: 'Feature', properties: { GWSTATUS: status }, geometry: { type: 'LineString', coordinates }
@@ -32,18 +32,28 @@ test('multipart and adjacent closure lines produce valid BRouter exclusion rings
     const url = new URL(routeUrl({ lng: -78.67, lat: 35.79 }, { lng: -78.64, lat: 35.82 }, 'custom:test', avoidance));
     assert.equal(url.searchParams.get('polygons'), avoidance.polygons);
     assert.equal(url.searchParams.get('profile'), 'custom:test');
+    for (const polygon of avoidance.polygons.split('|')) {
+        const values = polygon.split(',').map(Number);
+        assert.equal(values.length % 2, 1);
+        assert.equal(values.at(-1), CLOSURE_WEIGHT);
+        assert.ok(Number.isFinite(values.at(-1)) && values.at(-1) > 0);
+    }
     for (const area of avoidance.areas) {
         const ring = area.geometry.coordinates[0];
         assert.deepEqual(ring[0], ring.at(-1));
     }
 });
 
-test('rejects endpoints inside buffers and routes crossing or entirely inside closures', () => {
+test('weighted corridors allow nearby endpoints and crossings, while retaining intersection detection', () => {
     const avoidance = createAvoidance(collection(line()));
-    assert.throws(() => routeUrl({ lng: -78.65, lat: 35.805 }, { lng: -78.64, lat: 35.82 }, 'test', avoidance), /too close/);
-    assert.throws(() => validateRoute(route([[-78.651, 35.805], [-78.649, 35.805]]), avoidance), /still crosses/);
-    assert.throws(() => validateRoute(route([[-78.65, 35.804], [-78.65, 35.806]]), avoidance), /still crosses/);
-    assert.doesNotThrow(() => validateRoute(route([[-78.64, 35.804], [-78.64, 35.806]]), avoidance));
+    assert.doesNotThrow(() => routeUrl({ lng: -78.65, lat: 35.805 }, { lng: -78.64, lat: 35.82 }, 'test', avoidance));
+    const crossing = route([[-78.651, 35.805], [-78.649, 35.805]]);
+    assert.equal(validateRoute(crossing), crossing);
+    assert.ok(intersectsClosures(crossing, avoidance));
+    const alongClosure = route([[-78.65, 35.804], [-78.65, 35.806]]);
+    assert.equal(validateRoute(alongClosure), alongClosure);
+    assert.ok(intersectsClosures(alongClosure, avoidance));
+    assert.doesNotThrow(() => validateRoute(route([[-78.64, 35.804], [-78.64, 35.806]])));
 });
 
 test('empty closure data allows normal routing; invalid data cannot silently disable avoidance', () => {
@@ -54,7 +64,7 @@ test('empty closure data allows normal routing; invalid data cannot silently dis
     assert.throws(() => createAvoidance(collection(line('CLOSED_TEMP', [[NaN, 35.8], [-78, 35]]))), /invalid coordinates/);
     const missingStatus = line(); missingStatus.properties = {};
     assert.throws(() => createAvoidance(collection(missingStatus)), /missing its status/);
-    assert.throws(() => validateRoute(collection(), empty), /usable route/);
+    assert.throws(() => validateRoute(collection()), /usable route/);
     assert.throws(() => routeUrl({ lng: -78, lat: 35 }, { lng: -77, lat: 36 }, 'test', { areas: [], polygons: '1'.repeat(8000) }), /too many/);
 });
 

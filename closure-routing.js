@@ -5,6 +5,9 @@ const { booleanIntersects } = require('@turf/boolean-intersects');
 
 const CLOSED_STATUSES = ['CLOSED_TEMP', 'CLOSED_STORM'];
 const BUFFER_METERS = 25;
+// Added routing cost per meter inside a closure corridor: short crossings cost
+// less than following a closed trail. This is a preference, not a guarantee.
+const CLOSURE_WEIGHT = 10;
 
 async function loadClosures(layerUrl, signal, fetcher = fetch) {
     const features = [];
@@ -50,7 +53,7 @@ function createAvoidance(data) {
 
     // Union overlapping buffers so adjacent GIS segments produce compact corridors.
     // A 25 m buffer allows for GIS/OSM alignment differences, but can also cover
-    // nearby roads or grade-separated crossings: this is deliberately conservative.
+    // nearby roads or grade-separated crossings, so use a finite penalty.
     const corridor = buffer({ type: 'Feature', properties: {}, geometry: {
         type: 'MultiLineString', coordinates: lines
     } }, BUFFER_METERS, { units: 'meters', steps: 4 });
@@ -59,10 +62,10 @@ function createAvoidance(data) {
     const polygons = simplified.geometry.type === 'Polygon'
         ? [simplified.geometry.coordinates] : simplified.geometry.coordinates;
     // BRouter accepts outer rings only. Fill holes conservatively, and use the
-    // same rounded geometry when checking endpoints and the returned route.
+    // same rounded geometry when warning about the returned route.
     const rings = polygons.map(polygon => polygon[0].map(point => point.map(value => Number(value.toFixed(6)))));
     return {
-        polygons: rings.map(ring => ring.map(point => point.join(',')).join(',')).join('|'),
+        polygons: rings.map(ring => ring.map(point => point.join(',')).join(',') + ',' + CLOSURE_WEIGHT).join('|'),
         areas: rings.map(ring => ({ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [ring] } }))
     };
 }
@@ -72,11 +75,6 @@ function intersectsClosures(geojson, avoidance) {
 }
 
 function routeUrl(start, end, profile, avoidance) {
-    for (const location of [start, end]) {
-        if (intersectsClosures({ type: 'Point', coordinates: [location.lng, location.lat] }, avoidance)) {
-            throw new Error('Start or destination is too close to a mapped closure. Move it outside the closed section.');
-        }
-    }
     const params = new URLSearchParams({
         lonlats: `${start.lng},${start.lat}|${end.lng},${end.lat}`,
         profile, alternativeidx: '0', format: 'geojson'
@@ -89,15 +87,12 @@ function routeUrl(start, end, profile, avoidance) {
     return url;
 }
 
-function validateRoute(route, avoidance) {
+function validateRoute(route) {
     if (route.type !== 'FeatureCollection' || !route.features?.length ||
         route.features.some(feature => feature.geometry?.type !== 'LineString' || feature.geometry.coordinates.length < 2)) {
         throw new Error('The routing service did not return a usable route. Try moving the start or destination.');
     }
-    if (intersectsClosures(route, avoidance)) {
-        throw new Error('The route still crosses a mapped closure. Try another start or destination.');
-    }
     return route;
 }
 
-module.exports = { CLOSED_STATUSES, BUFFER_METERS, loadClosures, createAvoidance, intersectsClosures, routeUrl, validateRoute };
+module.exports = { CLOSED_STATUSES, BUFFER_METERS, CLOSURE_WEIGHT, loadClosures, createAvoidance, intersectsClosures, routeUrl, validateRoute };
