@@ -212,7 +212,7 @@
                 </tr>
                 <tr>
                     <td>
-                        <label><input id="spin-checkbox" type="checkbox" class="legend-checkbox">Available Spin e-bikes</label>
+                        <label><input id="spin-checkbox" type="checkbox" class="legend-checkbox" onchange="setCookie('showSpin', this.checked, 1000)">Available Spin e-bikes</label>
                         <small id="spin-status" role="status" aria-live="polite" style="display: block; max-width: 320px;">Live availability from Spin. Enable to load bikes.</small>
                     </td>
                     <td>
@@ -720,6 +720,7 @@
         map.resize();
     });
 
+    document.getElementById('spin-checkbox').checked = getCookie('showSpin') === 'true';
     SpinBikes.mount(map, document.getElementById('spin-checkbox'), document.getElementById('spin-status'));
 
     function onStyleLoad() {

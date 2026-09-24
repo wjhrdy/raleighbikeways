@@ -109,7 +109,7 @@
         function addLayer() {
             if (!map.getSource(id)) map.addSource(id, { type: 'geojson', data });
             if (!map.getLayer(id)) map.addLayer({
-                id, type: 'circle', source: id,
+                id, type: 'circle', source: id, minzoom: 11,
                 layout: { visibility: checkbox.checked ? 'visible' : 'none' },
                 paint: {
                     'circle-color': '#f36b21', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2,

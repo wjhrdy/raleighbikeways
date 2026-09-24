@@ -51,6 +51,7 @@ assert.throws(() => availableBikes(feed([bike]), { data: {} }, 1000));
     };
     mount(map, checkbox, status);
     assert.equal(requests.length, 0, 'off by default does not contact Spin');
+    assert.equal(layers[id].minzoom, 11, 'hide bikes below the bikeshare zoom threshold');
     checkbox.checked = true; events.change();
     assert.equal(requests.length, 2);
     assert(requests.every(r => r.options.cache === 'no-store' && r.options.credentials === 'omit'));
