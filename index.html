@@ -78,7 +78,7 @@
         </div>
         <details id="route-options">
             <summary>Stops and avoid points</summary>
-            <p>Right-click or long-press the map to add stops in order or avoid a 100 m area.</p>
+            <p>Right-click or long-press the map to add stops or avoid a 100 m area. Tap a numbered point to remove it.</p>
             <ol id="route-points-list"></ol>
             <button type="button" onclick="clearRoutePoints()">Clear stops and avoid points</button>
         </details>
@@ -774,6 +774,7 @@
             }
 
             setBrouterRoute(true);
+            drawRouteAvoidance();
         } catch (e) {
             onException(`Error on map style load`, e);
             alert(`Unknown Error; Please Refresh the Page`);
@@ -1489,7 +1490,7 @@
             startMarker.remove();
         }
 
-        startMarker = new mapboxgl.Marker({color: 'green'})
+        startMarker = new mapboxgl.Marker({color: 'green', scale: 0.8})
             .setLngLat(startLocation)
             .addTo(map)
         
@@ -1514,7 +1515,7 @@
             endMarker.remove();
         }
 
-        endMarker = new mapboxgl.Marker({color: 'red'})
+        endMarker = new mapboxgl.Marker({color: 'red', scale: 0.8})
             .setLngLat(endLocation)
             .addTo(map)
         
@@ -1568,6 +1569,28 @@
         routePointsChanged();
     }
 
+    function drawRouteAvoidance() {
+        const id = 'route-avoid-areas';
+        const data = { type: 'FeatureCollection', features: routeExclusions.map(point => {
+            const lat = point.lat * Math.PI / 180, lng = point.lng * Math.PI / 180;
+            const radius = 100 / 6371000;
+            const ring = Array.from({ length: 64 }, (_, index) => {
+                const bearing = index * Math.PI / 32;
+                const y = Math.asin(Math.sin(lat) * Math.cos(radius) + Math.cos(lat) * Math.sin(radius) * Math.cos(bearing));
+                const x = lng + Math.atan2(Math.sin(bearing) * Math.sin(radius) * Math.cos(lat), Math.cos(radius) - Math.sin(lat) * Math.sin(y));
+                return [x * 180 / Math.PI, y * 180 / Math.PI];
+            });
+            ring.push(ring[0]);
+            return { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [ring] } };
+        }) };
+        if (map.getSource(id)) map.getSource(id).setData(data);
+        else map.addSource(id, { type: 'geojson', data });
+        if (!map.getLayer(id)) map.addLayer({
+            id, type: 'fill', source: id,
+            paint: { 'fill-color': '#d93030', 'fill-opacity': 0.2, 'fill-outline-color': '#a71919' }
+        });
+    }
+
     function routePointsChanged() {
         routePointMarkers.forEach(marker => marker.remove());
         routePointMarkers = [];
@@ -1575,34 +1598,50 @@
         list.textContent = '';
         [[routeWaypoints, 'Stop'], [routeExclusions, 'Avoid']].forEach(([points, kind]) => {
             points.forEach((point, index) => {
-                const label = `${kind} ${index + 1}${kind === 'Avoid' ? ' (100 m radius)' : ''}`;
+                const label = `${kind} ${index + 1}`;
                 const row = document.createElement('li');
-                row.textContent = `${label}: ${point.lat.toFixed(5)}, ${point.lng.toFixed(5)} `;
-                if (kind === 'Stop' && index > 0) {
-                    const up = document.createElement('button');
-                    up.type = 'button';
-                    up.textContent = 'Move up';
-                    up.setAttribute('aria-label', `Move ${label} earlier`);
-                    up.onclick = () => {
-                        [points[index - 1], points[index]] = [points[index], points[index - 1]];
-                        routePointsChanged();
-                    };
-                    row.appendChild(up);
+                const name = document.createElement('span');
+                name.textContent = label;
+                row.appendChild(name);
+                if (kind === 'Stop') {
+                    [-1, 1].forEach(direction => {
+                        const move = document.createElement('button');
+                        move.type = 'button';
+                        move.className = 'material-icons';
+                        move.textContent = direction < 0 ? 'arrow_upward' : 'arrow_downward';
+                        move.setAttribute('aria-label', `Move ${label} ${direction < 0 ? 'earlier' : 'later'}`);
+                        move.title = `Move ${label} ${direction < 0 ? 'earlier' : 'later'}`;
+                        move.disabled = index + direction < 0 || index + direction >= points.length;
+                        move.onclick = () => {
+                            [points[index + direction], points[index]] = [points[index], points[index + direction]];
+                            routePointsChanged();
+                        };
+                        row.appendChild(move);
+                    });
                 }
+                const removePoint = () => { points.splice(index, 1); routePointsChanged(); };
                 const remove = document.createElement('button');
                 remove.type = 'button';
-                remove.textContent = 'Remove';
+                remove.className = 'material-icons';
+                remove.textContent = 'delete';
                 remove.setAttribute('aria-label', `Remove ${label}`);
-                remove.onclick = () => { points.splice(index, 1); routePointsChanged(); };
+                remove.title = `Remove ${label}`;
+                remove.onclick = removePoint;
                 row.appendChild(remove);
                 list.appendChild(row);
-                const element = document.createElement('div');
+                const element = document.createElement('button');
+                element.type = 'button';
                 element.className = 'route-point-marker ' + (kind === 'Avoid' ? 'route-point-avoid' : '');
-                element.textContent = kind === 'Stop' ? index + 1 : 'X';
-                element.title = label;
+                element.textContent = kind === 'Stop' ? index + 1 : 'X' + (index + 1);
+                element.title = `Remove ${label}`;
+                element.setAttribute('aria-label', `Remove ${label} from map`);
+                element.onclick = event => { event.stopPropagation(); removePoint(); };
                 routePointMarkers.push(new mapboxgl.Marker(element).setLngLat(point).addTo(map));
+                element.setAttribute('role', 'button'); // Mapbox otherwise assigns role="img".
+                element.setAttribute('tabindex', '0');
             });
         });
+        drawRouteAvoidance();
         if (startLocation && endLocation) fetchRouteFromBRouter(startLocation, endLocation);
     }
 
@@ -1687,11 +1726,12 @@
 
         const popupHtml = `
         <div id="context-menu-popup" onClick=closeContextMenuPopup()>
-            <p onClick=setStartLocationLngLat(${coordinates.lng},${coordinates.lat})>Set Location as Start</p>
+            <button type="button" onclick="setStartLocationLngLat(${coordinates.lng},${coordinates.lat})">Set Location as Start</button>
             <hr>
-            <p onClick=setEndLocationLngLat(${coordinates.lng},${coordinates.lat})>Set Location as End</p>
+            <button type="button" onclick="setEndLocationLngLat(${coordinates.lng},${coordinates.lat})">Set Location as End</button>
             <hr>
             <button type="button" onclick="addRoutePoint('stop', ${coordinates.lng}, ${coordinates.lat})">Add stop before end</button>
+            <hr>
             <button type="button" onclick="addRoutePoint('avoid', ${coordinates.lng}, ${coordinates.lat})">Avoid within 100 m</button>
         </div>
         `
